@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Numerador de páginas - Karla</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+         
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #111;
+        }
+
+        .container {
+            background-color: white;
+            padding: 3rem;
+            border-radius: 0;
+            box-shadow: none;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #222222;
+            font-size: 2.3rem;
+            line-height: 3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+         
+            margin-bottom: 5rem;
+        }
+
+        .upload-container {
+            margin-bottom: 2rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-button {
+            display: inline-block;
+            padding: 1rem 3rem;
+            background-color: #000;
+            color: white;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .upload-button:hover {
+            background-color: #333;
+    
+        }
+
+        .button-container {
+            margin-bottom: 2rem;
+        }
+
+        .action-button {
+            padding: 1rem 25px;
+            background-color: #000;
+            color:#cccccc;
+            border: none;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .action-button:hover {
+            background-color: #333
+        }
+
+        .action-button:disabled {
+            background-color: #ffffff;
+            border: 1px solid rgb(216, 216, 216);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            min-height: 20px;
+        }
+
+        .status.success {
+            color: #4CAF50;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+
+            .upload-button,
+            .action-button {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Programa de numeração automática de páginas</h1>
+        <p>Este programa permite adicionar páginas <br> e numerá-las automaticamente.</p>
+        <div class="upload-container">
+            <input type="file" id="pdfInput" accept=".pdf">
+            <label for="pdfInput" class="upload-button">Escolher PDF</label>
+        </div>
+        <div class="button-container">
+            <button id="numberPages" class="action-button" disabled>Numerar Páginas</button>
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const pdfInput = document.getElementById('pdfInput');
+            const numberPagesButton = document.getElementById('numberPages');
+            const statusDiv = document.getElementById('status');
+            let pdfBytes = null;
+
+            pdfInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    try {
+                        pdfBytes = await file.arrayBuffer();
+                        numberPagesButton.disabled = false;
+                        statusDiv.textContent = 'PDF carregado com sucesso!';
+                    } catch (error) {
+                        statusDiv.textContent = 'Erro ao carregar o PDF.';
+                        console.error(error);
+                    }
+                } else {
+                    statusDiv.textContent = 'Por favor, selecione um arquivo PDF válido.';
+                    numberPagesButton.disabled = true;
+                }
+            });
+
+            numberPagesButton.addEventListener('click', async () => {
+                if (!pdfBytes) {
+                    statusDiv.textContent = 'Por favor, carregue um PDF primeiro.';
+                    return;
+                }
+
+                try {
+                    statusDiv.textContent = 'Processando...';
+                    
+                    // Load the PDF
+                    const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
+                    const pages = pdfDoc.getPages();
+                    const totalPages = pages.length;
+                    
+                    console.log(`Total de páginas no PDF original: ${totalPages}`);
+                    
+                    // Create a new PDF document
+                    const newPdfDoc = await PDFLib.PDFDocument.create();
+                    
+                    // Agora vamos adicionar as páginas na ordem correta
+                    let currentPageNumber = 1;
+                    let blankPageCount = 1; // Contador apenas para páginas em branco
+                    
+                    // Primeiro, vamos copiar todas as páginas originais
+                    const pageIndexes = Array.from({ length: totalPages }, (_, i) => i);
+                    const copiedPages = await newPdfDoc.copyPages(pdfDoc, pageIndexes);
+                    
+                    // Agora vamos adicionar as páginas na ordem correta
+                    for (let i = 0; i < copiedPages.length; i++) {
+                        const page = copiedPages[i];
+                        console.log(`Adicionando página original ${currentPageNumber}`);
+                        newPdfDoc.addPage(page);
+                        
+                        // Adiciona página em branco após a segunda página ou após páginas pares
+                        if (currentPageNumber === 1 || (currentPageNumber > 1 && currentPageNumber % 1 === 0)) {
+                            console.log(`Adicionando página em branco após a página ${currentPageNumber}`);
+                            const { width, height } = page.getSize();
+                            const blankPage = newPdfDoc.addPage([width, height]);
+                            
+                            // Adicionar a palavra "BRANCO" no centro da página
+                            const { width: pageWidth, height: pageHeight } = blankPage.getSize();
+                            const fontSize = 20;
+                            const text = "EM BRANCO";
+                            
+                            // Calcular o tamanho do texto
+                            const textWidth = text.length * fontSize * 0.6;
+                            const textHeight = fontSize;
+                            
+                            // Calcular a posição central
+                            const x = (pageWidth - textWidth) / 2;
+                            const y = (pageHeight - textHeight) / 2;
+                            
+                            // Desenhar o retângulo de fundo
+                            blankPage.drawRectangle({
+                                x: x - 20,
+                                y: y - 20,
+                                width: textWidth + 57,
+                                height: textHeight + 40,
+                                borderWidth: 1,
+                                borderColor: PDFLib.rgb(0, 0, 0),
+                            });
+                            
+                            // Desenhar o texto
+                            blankPage.drawText(text, {
+                                x: x,
+                                y: y,
+                                size: fontSize,
+                                color: PDFLib.rgb(0, 0, 0),
+                                font: await newPdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold),
+                            });
+                            
+                            // Adicionar número da página em branco no canto superior esquerdo
+                            const pageNumber = blankPageCount.toString().padStart(3, '0');
+                            const pageText = `Pág. Nº ${pageNumber}`;
+                            
+                            blankPage.drawRectangle({
+                                x: 20,
+                                y: blankPage.getSize().height - 50,
+                                width: 83,
+                                height: 30,
+                                borderWidth: 1,
+                                borderColor: PDFLib.rgb(0, 0, 0),
+                            });
+                            
+                            blankPage.drawText(pageText, {
+                                x: 30,
+                                y: blankPage.getSize().height - 40,
+                                size: 12,
+                                color: PDFLib.rgb(0, 0, 0),
+                                font: await newPdfDoc.embedFont(PDFLib.StandardFonts.Helvetica),
+                            });
+                            
+                            console.log(`Página em branco ${blankPageCount} adicionada com sucesso após a página ${currentPageNumber}`);
+                            blankPageCount++;
+                        }
+                        
+                        currentPageNumber++;
+                    }
+                    
+                    console.log(`Total de páginas no novo PDF: ${newPdfDoc.getPageCount()}`);
+                    console.log(`Total de páginas em branco adicionadas: ${blankPageCount - 1}`);
+                    
+                    // Save the modified PDF
+                    statusDiv.textContent = 'Salvando PDF...';
+                    const modifiedPdfBytes = await newPdfDoc.save();
+                    
+                    // Create download link
+                    const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'pdf_com_paginas_em_branco.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    statusDiv.textContent = 'PDF modificado com sucesso!';
+                    statusDiv.classList.add('success');
+                } catch (error) {
+                    console.error('Erro detalhado:', error);
+                    statusDiv.textContent = 'Erro ao processar o PDF. Por favor, tente novamente.';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
