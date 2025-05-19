@@ -188,8 +188,7 @@
                     const newPdfDoc = await PDFLib.PDFDocument.create();
                     
                     // Agora vamos adicionar as páginas na ordem correta
-                    let currentPageNumber = 1;
-                    let blankPageCount = 1; // Contador apenas para páginas em branco
+                    let pageCounter = 1; // Contador único para todas as páginas
                     
                     // Primeiro, vamos copiar todas as páginas originais
                     const pageIndexes = Array.from({ length: totalPages }, (_, i) => i);
@@ -198,12 +197,46 @@
                     // Agora vamos adicionar as páginas na ordem correta
                     for (let i = 0; i < copiedPages.length; i++) {
                         const page = copiedPages[i];
-                        console.log(`Adicionando página original ${currentPageNumber}`);
+                        console.log(`Adicionando página original ${pageCounter}`);
+                        
+                        // Resetar rotação da página
+                        page.setRotation(PDFLib.degrees(0));
+                        
                         newPdfDoc.addPage(page);
                         
+                        // Adicionar número da página na página original
+                        const pageNumber = pageCounter.toString().padStart(3, '0');
+                        const pageText = `Pág. Nº ${pageNumber}`;
+                        
+                        // Determinar a posição baseado se a página é par ou ímpar
+                        const isEvenPage = pageCounter % 2 === 0;
+                        const xPosition = isEvenPage ? 10 : 50;
+
+                        // Skip drawing page number for the first page
+                        if (pageCounter > 1) {
+                            page.drawRectangle({
+                                x: xPosition + 465,
+                                y: page.getSize().height - 25,
+                                width: 60,
+                                height: 16,
+                                borderWidth: 1,
+                                borderColor: PDFLib.rgb(0, 0, 0),
+                            });
+                            
+                            page.drawText(pageText, {
+                                x: xPosition + 473,
+                                y: page.getSize().height - 20,
+                                size: 8,
+                                color: PDFLib.rgb(0, 0, 0),
+                                font: await newPdfDoc.embedFont(PDFLib.StandardFonts.Helvetica),
+                            });
+                        }
+                        
+                        pageCounter++;
+                        
                         // Adiciona página em branco após a segunda página ou após páginas pares
-                        if (currentPageNumber === 1 || (currentPageNumber > 1 && currentPageNumber % 1 === 0)) {
-                            console.log(`Adicionando página em branco após a página ${currentPageNumber}`);
+                        if (pageCounter === 1 || (pageCounter > 1 && pageCounter % 1 === 0)) {
+                            console.log(`Adicionando página em branco após a página ${pageCounter}`);
                             const { width, height } = page.getSize();
                             const blankPage = newPdfDoc.addPage([width, height]);
                             
@@ -239,36 +272,37 @@
                                 font: await newPdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold),
                             });
                             
-                            // Adicionar número da página em branco no canto superior esquerdo
-                            const pageNumber = blankPageCount.toString().padStart(3, '0');
-                            const pageText = `Pág. Nº ${pageNumber}`;
+                            // Adicionar número da página em branco
+                            const blankPageNumber = pageCounter.toString().padStart(3, '0');
+                            const blankPageText = `Pág. Nº ${blankPageNumber}`;
+                            
+                            // Determinar a posição baseado se a página é par ou ímpar
+                            const isBlankPageEven = pageCounter % 2 === 0;
+                            const blankXPosition = isBlankPageEven ? blankPage.getSize().width - 110 : 20;
                             
                             blankPage.drawRectangle({
-                                x: 20,
-                                y: blankPage.getSize().height - 50,
-                                width: 83,
-                                height: 30,
+                                x: blankXPosition - 465,
+                                y: blankPage.getSize().height - 25,
+                                width: 60,
+                                height: 16,
                                 borderWidth: 1,
                                 borderColor: PDFLib.rgb(0, 0, 0),
                             });
                             
-                            blankPage.drawText(pageText, {
-                                x: 30,
-                                y: blankPage.getSize().height - 40,
-                                size: 12,
+                            blankPage.drawText(blankPageText, {
+                                x: blankXPosition - 457,
+                                y: blankPage.getSize().height - 20,
+                                size:8,
                                 color: PDFLib.rgb(0, 0, 0),
                                 font: await newPdfDoc.embedFont(PDFLib.StandardFonts.Helvetica),
                             });
                             
-                            console.log(`Página em branco ${blankPageCount} adicionada com sucesso após a página ${currentPageNumber}`);
-                            blankPageCount++;
+                            console.log(`Página em branco ${pageCounter} adicionada com sucesso após a página ${pageCounter}`);
+                            pageCounter++;
                         }
-                        
-                        currentPageNumber++;
                     }
                     
                     console.log(`Total de páginas no novo PDF: ${newPdfDoc.getPageCount()}`);
-                    console.log(`Total de páginas em branco adicionadas: ${blankPageCount - 1}`);
                     
                     // Save the modified PDF
                     statusDiv.textContent = 'Salvando PDF...';
@@ -279,7 +313,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'pdf_com_paginas_em_branco.pdf';
+                    a.download = 'documento_numerado.pdf';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
